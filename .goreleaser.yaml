@@ -1,0 +1,110 @@
+# GoReleaser configuration. https://goreleaser.com
+# Validate locally with: goreleaser check
+version: 2
+
+project_name: vt-backup
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: vt-backup
+    main: .
+    binary: vt-backup
+    env:
+      - CGO_ENABLED=0
+    # Match the platform matrix in the justfile.
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/kairoaraujo/vt-backup/cmd.Version={{ .Version }}
+
+archives:
+  - id: vt-backup
+    ids:
+      - vt-backup
+    formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+# Software Bill of Materials, one per archive (requires syft on PATH).
+sboms:
+  - id: archive
+    artifacts: archive
+
+# Keyless Sigstore signing of the checksums file. cosign v3+ defaults to the
+# new bundle format, so we emit a single `.bundle` (signature + certificate +
+# transparency-log entry) instead of the deprecated split `.sig`/`.pem`.
+# `cosign` and an ambient OIDC token (id-token: write) must be available.
+signs:
+  - id: cosign
+    cmd: cosign
+    signature: "${artifact}.bundle"
+    args:
+      - sign-blob
+      - "--bundle=${signature}"
+      - "--yes"
+      - "${artifact}"
+    artifacts: checksum
+    output: true
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Others
+      order: 999
+
+release:
+  draft: false
+  prerelease: auto
+  footer: |
+    ---
+
+    ## Verifying the release
+
+    Verify the checksums signature (keyless, Sigstore):
+
+    ```bash
+    cosign verify-blob \
+      --bundle vt-backup_{{ .Version }}_checksums.txt.bundle \
+      --certificate-identity-regexp 'https://github.com/.*/.github/workflows/release.yml@.*' \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+      vt-backup_{{ .Version }}_checksums.txt
+    ```
+
+    Verify a downloaded archive's build provenance attestation:
+
+    ```bash
+    gh attestation verify vt-backup_{{ .Version }}_linux_amd64.tar.gz --owner <owner>
+    ```

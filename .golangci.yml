@@ -1,0 +1,40 @@
+# golangci-lint v2 configuration. https://golangci-lint.run/
+version: "2"
+
+linters:
+  # `standard` is errcheck/govet/ineffassign/staticcheck/unused. Add a few
+  # high-signal linters on top without drowning the project in noise.
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - gocritic
+    - misspell
+    - revive
+    - unconvert
+    - unparam
+  settings:
+    staticcheck:
+      # ST1005: this is a CLI that intentionally emits multi-line, capitalized,
+      # punctuated, user-facing error messages. Keep every other check.
+      checks:
+        - all
+        - -ST1005
+    revive:
+      rules:
+        # Same rationale as ST1005 above — deliberate user-facing wording.
+        - name: error-strings
+          disabled: true
+  exclusions:
+    generated: lax
+    rules:
+      # Test files may use dot-imports and skip some checks.
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gocritic
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

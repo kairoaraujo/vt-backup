@@ -1,0 +1,43 @@
+name: Zizmor
+
+# Static analysis of the GitHub Actions workflows themselves.
+# https://docs.zizmor.sh/
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/**
+      - .github/dependabot.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/**
+      - .github/dependabot.yml
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  zizmor:
+    name: Zizmor
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Upload findings to the Security tab as code scanning alerts.
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@192e21d79ab29983730a13d1382995c2307fbcaa # v0.5.7
+        with:
+          inputs: .
+          persona: regular
+          # Upload SARIF results to the Security tab (works on public repos /
+          # repos with GitHub Advanced Security).
+          advanced-security: "true"
