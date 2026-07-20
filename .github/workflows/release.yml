@@ -29,6 +29,7 @@ jobs:
         with:
           go-version-file: go.mod
           check-latest: true
+          cache: false
 
       # Sigstore cosign for keyless signing of the release checksums.
       - name: Install cosign
